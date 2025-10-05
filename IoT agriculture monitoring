@@ -1,0 +1,58 @@
+#include <WiFi.h>
+#include "DHT.h"
+#include "ThingSpeak.h"
+
+#define DHTPIN 4       // DHT11 connected to GPIO 4
+#define DHTTYPE DHT11
+#define SOIL_PIN 34    // Soil moisture sensor analog pin
+
+DHT dht(DHTPIN, DHTTYPE);
+
+const char* ssid = "YourWiFiName";
+const char* password = "YourWiFiPassword";
+
+WiFiClient client;
+
+// ThingSpeak details
+unsigned long myChannelNumber = YOUR_CHANNEL_ID;
+const char * myWriteAPIKey = "YOUR_API_KEY";
+
+void setup() {
+  Serial.begin(115200);
+  dht.begin();
+  WiFi.begin(ssid, password);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nWiFi Connected");
+  
+  ThingSpeak.begin(client);
+}
+
+void loop() {
+  // Read sensors
+  float h = dht.readHumidity();
+  float t = dht.readTemperature();
+  int soil = analogRead(SOIL_PIN);
+
+  // Print data
+  Serial.print("Temp: "); Serial.print(t);
+  Serial.print(" °C  Humidity: "); Serial.print(h);
+  Serial.print("%  Soil: "); Serial.println(soil);
+
+  // Send to ThingSpeak
+  ThingSpeak.setField(1, t);
+  ThingSpeak.setField(2, h);
+  ThingSpeak.setField(3, soil);
+  
+  int x = ThingSpeak.writeFields(myChannelNumber, myWriteAPIKey);
+  if (x == 200) {
+    Serial.println("Data sent successfully");
+  } else {
+    Serial.println("Error sending data");
+  }
+
+  delay(15000); // 15 sec delay (ThingSpeak limit)
+}
